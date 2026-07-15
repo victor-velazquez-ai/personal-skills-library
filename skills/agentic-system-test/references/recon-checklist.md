@@ -63,6 +63,11 @@ For **each** — chat/UI, REST/GraphQL, scheduled/cron, batch, webhook, CLI:
       unpinned client among many pinned ones is a classic (C1).
 - [ ] **How many LLM *gates* per request?** They multiply (C2). Five at 0.95
       ≈ 0.77 end-to-end. This is usually the flake budget.
+- [ ] **Inventory injected-vs-ambient pairs.** For every value the system injects
+      into a prompt (time, tenant, user, locale, units), ask: **can the model
+      reach an equivalent from the execution environment instead?** If yes, and
+      nothing forbids it, assume it does — and check what that ambient source is
+      configured to (it is usually the *server's* answer, not the *user's*). → C5.
 - [ ] Free-text parsing of model output (`json.loads` + fence-stripping)? (C3)
 - [ ] Prompt sizes; how much history is injected? Oversized prompts degrade
       instruction-following, especially on routing calls.
@@ -186,8 +191,20 @@ Allowed env: <> · Side effects: <> · Real data: <> · Budget: <>
 
 Note these; several are P0 on their own:
 
+- **A value injected into a prompt that the execution environment ALSO exposes**
+  (you pass the time, but the DB has a clock; you pass the tenant, but a session
+  default exists). Nothing forbids the model from using the ambient one — and it
+  will, some of the time. **List every such pair in recon; each is a C5
+  candidate, and this is the highest-yield smell on the list.**
+- **An invariant enforced only by a sentence in a prompt** — a prompt rule is a
+  request, not a guard (D5). Ask the system to violate it.
+- **A rejection that something else can reverse** — a "proceed anyway" / "best
+  effort" salvage path. Check whether it re-applies *every* dimension the guard
+  checked, or only the quality ones (B7).
 - A model client with no sampling setting, next to clients that have one.
 - A retry that instructs the model to loosen constraints.
+- A rule that exists in the main prompt but **not** in the retry/rewrite prompt
+  that can overwrite its output.
 - A summary/narrative generated without access to the data it describes.
 - An error path and an empty path converging on one branch.
 - A failure path that returns before its audit write.

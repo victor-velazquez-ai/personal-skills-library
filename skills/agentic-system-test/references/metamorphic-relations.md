@@ -37,6 +37,28 @@ to extracting entities/numbers from the response, and note the weaker oracle.
 *first*. If `f(x)` already varies run-to-run, every other relation is measured
 against noise. Run each side N times and compare distributions, not singletons.
 
+**Beware the dominant defect.** If one bug fails a large share of runs outright
+(everything returns empty, everything errors), **it confounds every other
+relation** — the code path you meant to test never executes. You will report
+"MR-9 violated" when MR-9 never ran.
+
+> **Field note.** On this skill's first use, a bug that zeroed ~25% of queries
+> made two relations (NULL-handling, scope monotonicity) unmeasurable — every run
+> of those cells hit the dominant bug first. The correct move was to report them
+> **NOT MEASURED**, with the reason, and re-queue them behind the fix. Do not
+> convert a confounded cell into a finding. "I could not measure this, and here's
+> why" is a real result; a fabricated violation is worse than no test.
+
+**Design the fixture to discriminate.** Every relation needs data that can
+*distinguish* pass from fail. A monotonicity test where the filtered set happens
+to equal the base set proves nothing, however green it looks.
+
+> **Field note.** Same run: MR-3 (adding a filter must not increase rows) was
+> unmeasurable because every worker with data on the test day belonged to the one
+> company being filtered on — base and filtered were both 4. The fixture, not the
+> system, was the problem. **For each relation, ask: what row must exist for this
+> to be able to fail?** Then seed it.
+
 ---
 
 ## The catalogue

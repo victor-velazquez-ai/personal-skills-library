@@ -45,6 +45,23 @@ at a time.
 >
 > And hunt the right bug class: **silent wrongness beats crashes.**
 
+**And the reason reading the code is not a substitute:**
+
+> **The artifact that does the work does not exist in the source.** An agentic
+> system *generates* its query, its plan, its tool call — fresh, at runtime, from
+> a model. The source shows only what the system is **asked** to do. What it
+> **actually does** is decided per run, and the decision is not in the repo.
+>
+> A careful reviewer will therefore reach confident, well-reasoned, **false**
+> conclusions about behaviour — not through carelessness, but because the
+> evidence isn't in the file they're reading. **Never accept a static conclusion
+> about a generated artifact. Generate it and look.**
+
+This is not hypothetical. On this skill's first use, an 8-reviewer code audit
+concluded a specific class of date bug "does not exist in the generated path".
+Running the system showed it in **25% of generations** — and it was the reason the
+planned fix would not have worked. *(See `failure-patterns.md` → C5.)*
+
 ## When to use
 
 - Testing/QA of an agent, chatbot, RAG pipeline, LLM workflow, or any
@@ -222,6 +239,32 @@ system admit what it didn't know, would they trust it.
 wrongly score well on answer-similarity and are the most dangerous thing you
 can ship.
 
+### Inspect the generated artifact, not just the answer
+
+The strongest oracle in an agentic system is usually **not** the final text — it
+is the **artifact the model generated on the way there**: the SQL, the tool call,
+the plan, the retrieval filter. It is deterministic, inspectable, and cheap to
+assert on.
+
+Capture it on every run and assert **properties** of it (L5), not just the output:
+
+- Does it contain a **forbidden ambient source**? (a server clock, a session
+  default, "current user" — anything that silently overrides a value you injected
+  → **C5**, the highest-yield check in this list)
+- Does it carry the **tenant/authority filter**, with the **caller's** value —
+  not merely the field name?
+- Does it honour the entities/IDs that were resolved for it?
+- Did it change **scope** between the first attempt and a retry?
+
+Then **correlate artifact shape with correctness**. This is what turns "it's
+flaky" into a mechanism: if one artifact shape predicts failure and another
+predicts success, you have the bug, the fix, and the regression test in one pass.
+
+> **Field note.** On first use this produced the cleanest signal of the whole run:
+> across 29 runs, artifacts using the ambient clock were wrong **14/14**; those
+> using the injected value were right **15/15**. Zero exceptions — the artifact's
+> shape *completely* determined correctness, and nothing else mattered.
+
 ### What to look for — the failure catalogue
 
 The bug classes specific to agentic systems, and how to detect each:
@@ -263,6 +306,29 @@ For each candidate finding:
 5. **De-duplicate to root cause.** Ten symptoms from one cause is **one**
    finding with ten repros — not ten tickets. This is the single biggest
    quality difference between a useful report and a noise dump.
+6. **Upgrade the finding to production with one safe check.** A bug proven in a
+   fixture invites *"that's just your test setup"*. Find the **single read-only
+   observation** in the real environment that settles whether it applies there —
+   a config value, a server setting, a version, a row count. It is usually one
+   query, it is safe, and it changes the finding's status from *"true in my
+   sandbox"* to **"true in production right now"**. Nothing else you do in Phase 4
+   moves a finding as far for as little.
+
+   > **Field note.** One read-only `SHOW timezone` against the real database
+   > confirmed it ran UTC while the site did not — converting a fixture
+   > observation into a live production defect, and inverting a scheduled fix in
+   > the process. It took ten seconds.
+
+7. **Report what you exonerated.** Verification is not only for confirming bugs —
+   it also **clears** suspicions, and that has real value. If a prior review
+   suspected a component and testing shows it works, say so with the numbers, and
+   **correct the record**. It tells the team where *not* to spend the sprint, and
+   it is what makes the findings you *do* report credible.
+
+   > **Field note.** The same run refuted two of its own audit's conclusions: a
+   > component flagged as a "prime suspect" rejected every bad input 20/20, and
+   > tenant isolation held 10/10. Both went in the report as prominently as the
+   > failures.
 
 ---
 
@@ -344,6 +410,25 @@ the report is only worth what gets fixed.
 
 - **Silent wrongness > crashes.** Budget your effort accordingly. Crashes get
   fixed on their own; silent wrongness ships to customers for months.
+- **Never trust a static conclusion about a generated artifact.** The query/plan
+  the system runs is written by a model at runtime. Reading the code tells you
+  what it was *asked* to do. Generate it and look.
+- **Inventory injected-vs-ambient pairs in recon (C5).** Every value you inject
+  that the environment also exposes is a coin flip you didn't know you were
+  making — and the ambient answer is the *server's*, not the *user's*.
+- **Test the guard's overrides, not just the guard (B7).** A check that works
+  perfectly and is reversible by a salvage path is not a check.
+- **Ask the system to break its own rules (D5).** Anything enforced only by a
+  prompt is a request. This takes one sentence and finds real gaps.
+- **Kill the dominant defect before measuring the rest.** One bug that zeroes a
+  quarter of runs makes every other relation unmeasurable — report those cells
+  **NOT MEASURED**, with the reason. A confounded cell is not a finding.
+- **Ask of every fixture cell: what row must exist for this to be able to fail?**
+  A relation that cannot discriminate passes green and proves nothing.
+- **One read-only check in the real environment** turns "true in my fixture" into
+  "true in production". Always find it.
+- **Report what you exonerated**, not just what you broke. Clearing a suspect
+  redirects a sprint and buys credibility for the findings you do report.
 - **Test the honesty layer explicitly.** "Does it admit failure?" is a test
   case, not a nice-to-have. Most agentic systems route disclosure through the
   LLM as a *suggestion* and failure through a log line as a *shrug* — so the
