@@ -95,6 +95,13 @@ End with a **bottom-line** paragraph.
   flows, `stateDiagram-v2` for lifecycles, `gantt` for the roadmap. Use a
   consistent colour `classDef` palette.
 - Schemas: real JSON/SQL/code blocks for every contract surface.
+- **Readability (applies to EVERY `.md` — plan and backlog):** the reader must
+  be able to *scan*. One idea per line; a blank line between blocks. **Never**
+  chain labelled fields inline (`**Why:** … **Scope:** …`) — each labelled field
+  is its own line with its content beneath it. Put a `---` rule between repeated
+  items (each ticket, each epic). Prefer short paragraphs + bullet lists over
+  dense prose; fenced code/schema blocks get a blank line before and after. A
+  wall of run-on text is a defect, not a style choice.
 
 ### Step 3 — Render the deliverables (optional but recommended)
 - **HTML** = the review artifact (auto-TOC sidebar from `##` headings, Mermaid
@@ -119,10 +126,21 @@ Only after the design is accepted.
 - **Epic summary table** (epic | phase | goal | rolled-up points | priority) +
   a **dependency diagram** + a **traceability table** (design § → epic/story)
   that proves the backlog covers the whole design.
-- **~6 epics**, each with a goal and success criteria, then **stories**. Each
-  story: a one-line user story, technical notes grounded in the design + code,
-  **tasks as a sub-task checklist**, **acceptance criteria**, dependencies,
-  estimate, priority, components.
+- **~6 epics**, each with a goal and success criteria, then **stories/tickets**.
+
+  Every ticket uses this exact shape — each field a labelled block on its own
+  line (never inline), and tickets are separated by a `---` rule:
+
+  - **Title** + a one-line meta (`component · priority · points · depends`).
+  - **Why** — the problem, grounded in `file:line`.
+  - **Technical scope** — exactly what to build/change: real paths, code, commands.
+  - **Tasks** — a sub-task checklist.
+  - **Success criteria** — *measurable, testable* "done", distinct from the tasks:
+    an outcome you can assert / `grep` / run, not a restatement of the work.
+  - **Verification** — how a reviewer proves it (the exact command or check).
+
+  A thin, generic ticket is a bug. If a field can't cite a path or state a
+  measurable outcome, the ticket isn't ready.
 - A **suggested sprint slicing** and a crisp **"module is live" exit bar**.
 
 ## Outputs
@@ -145,6 +163,9 @@ Only after the design is accepted.
 - [ ] Evaluation section ties to the system-wide eval plan.
 - [ ] Backlog covers the whole design (traceability table proves it), is
       Jira-ready, and names the critical-path dependency to schedule first.
+- [ ] Every `.md` is **scannable**: labelled fields on their own lines, a `---`
+      between tickets/epics, no run-on walls of text — and every ticket has a
+      *measurable* **Success criteria** plus a **Verification** step.
 
 ## Tips & gotchas
 
